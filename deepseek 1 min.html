@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Канбан-доска</title>
+<style>
+  :root {
+    --bg: #eef1f8;
+    --col-bg: #f6f8fd;
+    --card-bg: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --accent: #6366f1;
+    --accent-soft: #eef2ff;
+    --danger: #ef4444;
+    --shadow: 0 1px 2px rgba(15,23,42,.06), 0 4px 12px rgba(15,23,42,.06);
+    --shadow-lg: 0 12px 28px rgba(15,23,42,.16);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1120;
+      --col-bg: #141d31;
+      --card-bg: #1e293b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #2a3651;
+      --accent: #818cf8;
+      --accent-soft: #1e2a52;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.3);
+      --shadow-lg: 0 12px 28px rgba(0,0,0,.55);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- Шапка ---------- */
+  .topbar {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 28px 24px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand h1 { font-size: 19px; margin: 0; font-weight: 700; letter-spacing: -.01em; }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+  .ghost-btn {
+    font: inherit; font-size: 13px; padding: 8px 14px;
+    border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card-bg); color: var(--muted);
+    cursor: pointer; transition: color .16s, border-color .16s;
+  }
+  .ghost-btn:hover { color: var(--danger); border-color: currentColor; }
+
+  /* ---------- Доска ---------- */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    padding: 0 24px 48px;
+    max-width: 1200px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .board { grid-template-columns: 1fr; }
+  }
+
+  .column {
+    background: var(--col-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .col-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 6px 12px;
+  }
+  .col-head h2 {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+  }
+  .count {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 999px;
+    min-width: 26px;
+    text-align: center;
+    transition: transform .18s cubic-bezier(.2,.8,.2,1);
+  }
+  .count.bump { animation: bump .28s cubic-bezier(.2,.8,.2,1); }
+  @keyframes bump { 50% { transform: scale(1.22); } }
+
+  /* ---------- Контейнер карточек ---------- */
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    min-height: 90px;
+    padding: 3px;
+    border-radius: 12px;
+    transition: background .18s ease, box-shadow .18s ease;
+  }
+  .cards.over {
+    background: rgba(99,102,241,.09);
+    box-shadow: inset 0 0 0 2px rgba(99,102,241,.38);
+  }
+  .cards:empty::after {
+    content: "Перетащите карточку сюда";
+    display: grid;
+    place-items: center;
+    min-height: 84px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 12.5px;
+    opacity: .75;
+    pointer-events: none;
+  }
+
+  /* ---------- Карточка ---------- */
+  .card {
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    cursor: grab;
+    box-shadow: var(--shadow);
+    transition: box-shadow .18s ease, border-color .18s ease;
+    will-change: transform;
+    overflow-wrap: anywhere;
+  }
+  .card:hover {
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(99,102,241,.45);
+  }
+  .card:active { cursor: grabbing; }
+
+  .card.dragging {
+    opacity: .35;
+    box-shadow: none;
+    border-style: dashed;
+    border-color: var(--accent);
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    padding-right: 22px;
+  }
+  .card-desc {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+  }
+
+  .card-del {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    border: none; border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s, background .15s, color .15s;
+  }
+  .card:hover .card-del,
+  .card:focus-within .card-del { opacity: 1; }
+  .card-del:hover { background: rgba(239,68,68,.14); color: var(--danger); }
+
+  /* Появление / удаление */
+  @keyframes cardIn {
+    from { opacity: 0; transform: scale(.94) translateY(-6px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .card-enter { animation: cardIn .22s cubic-bezier(.2,.8,.2,1); }
+
+  .card.ghost {
+    pointer-events: none;
+    z-index: 60;
+    margin: 0;
+    box-shadow: var(--shadow-lg);
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .card.ghost.ghost-out { opacity: 0; transform: scale(.9) translateY(-8px); }
+
+  /* ---------- Кнопка добавления ---------- */
+  .add-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 9px;
+    font: inherit;
+    font-size: 13px;
+    border-radius: 10px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color .16s, border-color .16s, background .16s;
+  }
+  .add-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  /* ---------- Модальное окно ---------- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(15,23,42,.45);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    transition: opacity .2s ease;
+    z-index: 100;
+  }
+  .modal-backdrop.open { opacity: 1; }
+
+  .modal {
+    width: min(440px, 100%);
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 24px 60px rgba(15,23,42,.3);
+    transform: translateY(10px) scale(.97);
+    opacity: .5;
+    transition: transform .22s cubic-bezier(.2,.8,.2,1), opacity .22s ease;
+  }
+  .modal-backdrop.open .modal { transform: none; opacity: 1; }
+
+  .modal h2 { margin: 0 0 16px; font-size: 16px; font-weight: 700; }
+
+  .field { display: block; margin-bottom: 14px; }
+  .field > span {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  input[type="text"], textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color .16s, box-shadow .16s;
+  }
+  textarea { resize: vertical; min-height: 92px; line-height: 1.45; }
+  input[type="text"]:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99,102,241,.18);
+  }
+  .invalid { border-color: var(--danger) !important; }
+
+  .modal-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .spacer { flex: 1; }
+
+  .btn {
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background .16s, color .16s, border-color .16s, filter .16s;
+  }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.1); }
+  .btn.ghost { background: transparent; border-color: var(--border); color: var(--muted); }
+  .btn.ghost:hover { background: var(--bg); color: var(--text); }
+  .btn.danger { background: transparent; color: var(--danger); padding-left: 4px; padding-right: 8px; }
+  .btn.danger:hover { background: rgba(239,68,68,.12); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>Канбан-доска</h1>
+  </div>
+  <button class="ghost-btn" id="resetBtn" type="button">Сбросить доску</button>
+</header>
+
+<main class="board" id="board"></main>
+
+<!-- Модальное окно -->
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h2 id="modalTitle">Новая карточка</h2>
+
+    <label class="field">
+      <span>Заголовок</span>
+      <input type="text" id="inpTitle" maxlength="120" placeholder="Например, «Сверстать карточку»" autocomplete="off">
+    </label>
+
+    <label class="field">
+      <span>Описание</span>
+      <textarea id="inpDesc" maxlength="800" placeholder="Детали задачи (необязательно)"></textarea>
+    </label>
+
+    <div class="modal-actions">
+      <button class="btn danger" id="btnDelete" type="button" hidden>Удалить</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="btnCancel" type="button">Отмена</button>
+      <button class="btn primary" id="btnSave" type="button">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const STORAGE_KEY = 'kanban-board-v1';
+
+  /* ==================== DOM ==================== */
+  const boardEl    = document.getElementById('board');
+  const modal      = document.getElementById('modal');
+  const modalTitle = document.getElementById('modalTitle');
+  const inpTitle   = document.getElementById('inpTitle');
+  const inpDesc    = document.getElementById('inpDesc');
+  const btnSave    = document.getElementById('btnSave');
+  const btnCancel  = document.getElementById('btnCancel');
+  const btnDelete  = document.getElementById('btnDelete');
+  const resetBtn   = document.getElementById('resetBtn');
+
+  /* ==================== Состояние ==================== */
+  // state = {
+  //   cards:   { [id]: { id, title, desc } },
+  //   columns: [ { id, title, cardIds: [id, ...] } ]
+  // }
+  let state = null;
+
+  const uid = () =>
+    'c' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+
+  function seedState() {
+    const s = {
+      cards: {},
+      columns: [
+        { id: 'todo',  title: 'К выполнению', cardIds: [] },
+        { id: 'doing', title: 'В работе',     cardIds: [] },
+        { id: 'done',  title: 'Готово',       cardIds: [] }
+      ]
+    };
+    const add = (colId, title, desc) => {
+      const id = uid();
+      s.cards[id] = { id, title, desc };
+      s.columns.find(c => c.id === colId).cardIds.push(id);
+    };
+    add('todo',  'Продумать структуру доски', 'Три колонки, счётчики и перетаскивание.');
+    add('todo',  'Собрать обратную связь', '');
+    add('doing', 'Сверстать карточки', 'Заголовок, описание и кнопка удаления.');
+    add('done',  'Настроить localStorage', 'Состояние переживает перезагрузку страницы.');
+    return s;
+  }
+
+  /* ==================== Хранилище ==================== */
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Не удалось сохранить состояние доски:', e);
+    }
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return seedState();
+
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.cards !== 'object' || !Array.isArray(parsed.columns)) {
+        return seedState();
+      }
+
+      parsed.columns = parsed.columns.filter(
+        c => c && typeof c.id === 'string' && Array.isArray(c.cardIds)
+      );
+      if (!parsed.columns.length) return seedState();
+
+      // чистим «висячие» идентификаторы
+      const used = new Set();
+      for (const col of parsed.columns) {
+        col.cardIds = col.cardIds.filter(id => {
+          const card = parsed.cards[id];
+          return card && typeof card.title === 'string';
+        });
+        col.cardIds.forEach(id => used.add(id));
+      }
+      for (const id of Object.keys(parsed.cards)) {
+        if (!used.has(id)) delete parsed.cards[id];
+      }
+      return parsed;
+    } catch (e) {
+      console.warn('Не удалось прочитать сохранённое состояние:', e);
+      return seedState();
+    }
+  }
+
+  /* ==================== Отрисовка ==================== */
+  function buildColumn(col) {
+    const el = document.createElement('section');
+    el.className = 'column';
+    el.dataset.col = col.id;
+
+    const head = document.createElement('header');
+    head.className = 'col-head';
+    const h2 = document.createElement('h2');
+    h2.textContent = col.title;
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = '0';
+    head.append(h2, count);
+
+    const list = document.createElement('div');
+    list.className = 'cards';
+    list.dataset.col = col.id;
+
+    for (const id of col.cardIds) {
+      const card = state.cards[id];
+      if (card) list.appendChild(buildCard(card));
+    }
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'add-btn';
+    addBtn.dataset.add = col.id;
+    addBtn.textContent = '+ Добавить карточку';
+
+    el.append(head, list, addBtn);
+    return el;
+  }
+
+  function buildCard(card) {
+    const el = document.createElement('article');
+    el.className = 'card';
+    el.draggable = true;
+    el.dataset.id = card.id;
+    el.innerHTML =
+      '<div class="card-title"></div>' +
+      '<div class="card-desc"></div>' +
+      '<button class="card-del" type="button" aria-label="Удалить карточку">×</button>';
+    fillCard(el, card);
+    return el;
+  }
+
+  function fillCard(el, card) {
+    el.querySelector('.card-title').textContent = card.title;
+    const desc = el.querySelector('.card-desc');
+    desc.textContent = card.desc || '';
+    desc.hidden = !card.desc;
+  }
+
+  function render() {
+    boardEl.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (const col of state.columns) frag.appendChild(buildColumn(col));
+    boardEl.appendChild(frag);
+    updateCounts();
+  }
+
+  function updateCounts() {
+    for (const col of state.columns) {
+      const colEl = boardEl.querySelector(`.column[data-col="${col.id}"]`);
+      if (!colEl) continue;
+      const n = colEl.querySelectorAll('.cards .card').length;
+      const badge = colEl.querySelector('.count');
+      if (badge.textContent === String(n)) continue;
+      badge.textContent = n;
+      badge.classList.remove('bump');
+      void badge.offsetWidth;
+      badge.classList.add('bump');
+    }
+  }
+
+  /* ==================== FLIP-анимация ==================== */
+  function captureRects(excludeEl) {
+    const map = new Map();
+    boardEl.querySelectorAll('.card').forEach(el => {
+      if (el === excludeEl) return;
+      map.set(el, el.getBoundingClientRect());
+    });
+    return map;
+  }
+
+  function animateFLIP(firstRects) {
+    firstRects.forEach((first, el) => {
+      if (!el.isConnected) return;
+      const last = el.getBoundingClientRect();
+      const dx = first.left - last.left;
+      const dy = first.top - last.top;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+
+      el.style.transition = 'none';
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      void el.offsetWidth; // принудительный reflow
+
+      el.style.transition = 'transform 200ms cubic-bezier(.2,.8,.2,1)';
+      el.style.transform = 'translate(0px, 0px)';
+
+      clearTimeout(el._flipTimer);
+      el._flipTimer = setTimeout(() => {
+        el.style.transition = '';
+        el.style.transform = '';
+      }, 215);
+    });
+  }
+
+  /* ==================== Drag & Drop ==================== */
+  let dragEl = null;
+  let overList = null;
+  let dragClassTimer = null;
+
+  function setOver(list) {
+    if (overList === list) return;
+    if (overList) overList.classList.remove('over');
+    overList = list;
+    if (list) list.classList.add('over');
+  }
+
+  function clearOver() {
+    setOver(null);
+  }
+
+  function getDragAfterElement(container, y) {
+    const els = [...container.querySelectorAll('.card:not(.dragging)')];
+    let closest = null;
+    let closestOffset = Number.NEGATIVE_INFINITY;
+
+    for (const child of els) {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closestOffset) {
+        closestOffset = offset;
+        closest = child;
+      }
+    }
+    return closest;
+  }
+
+  boardEl.addEventListener('dragstart', e => {
+    const card = e.target.closest('.card');
+    if (!card) return;
+
+    dragEl = card;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', card.dataset.id);
+
+    // класс добавляем асинхронно, чтобы «снимок» drag-образа был непрозрачным
+    dragClassTimer = setTimeout(() => {
+      if (dragEl === card) card.classList.add('dragging');
+    }, 0);
+  });
+
+  boardEl.addEventListener('dragover', e => {
+    if (!dragEl) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const columnEl = e.target.closest('.column');
+    if (!columnEl) return;
+
+    const list = columnEl.querySelector('.cards');
+    if (!list) return;
+
+    setOver(list);
+
+    const after = getDragAfterElement(list, e.clientY);
+    if (dragEl.parentElement === list && dragEl.nextElementSibling === after) return;
+
+    const first = captureRects(dragEl);
+    if (after) list.insertBefore(dragEl, after);
+    else list.appendChild(dragEl);
+    animateFLIP(first);
+  });
+
+  boardEl.addEventListener('drop', e => {
+    if (!dragEl) return;
+    e.preventDefault();
+  });
+
+  document.addEventListener('dragend', () => {
+    clearTimeout(dragClassTimer);
+    if (!dragEl) return;
+
+    dragEl.classList.remove('dragging');
+    dragEl = null;
+    clearOver();
+
+    syncFromDOM();
+    updateCounts();
+    save();
+  });
+
+  function syncFromDOM() {
+    for (const col of state.columns) {
+      const list = boardEl.querySelector(`.cards[data-col="${col.id}"]`);
+      if (!list) continue;
+      col.cardIds = [...list.querySelectorAll('.card')]
+        .map(el => el.dataset.id)
+        .filter(id => state.cards[id]);
+    }
+  }
+
+  /* ==================== Действия с карточками ==================== */
+  function createCard(columnId, title, desc) {
+    const col = state.columns.find(c => c.id === columnId);
+    if (!col) return;
+
+    const id = uid();
+    const card = { id, title, desc };
+    state.cards[id] = card;
+    col.cardIds.push(id);
+
+    const list = boardEl.querySelector(`.cards[data-col="${columnId}"]`);
+    if (list) {
+      const el = buildCard(card);
+      el.classList.add('card-enter');
+      el.addEventListener('animationend', () => el.classList.remove('card-enter'), { once: true });
+      list.appendChild(el);
+    }
+
+    updateCounts();
+    save();
+  }
+
+  function updateCard(id, title, desc) {
+    const card = state.cards[id];
+    if (!card) return;
+    card.title = title;
+    card.desc = desc;
+
+    const el = boardEl.querySelector(`.card[data-id="${id}"]`);
+    if (el) {
+      const first = captureRects(null);
+      fillCard(el, card);
+      animateFLIP(first);
+    }
+    save();
+  }
+
+  function removeCard(el, skipConfirm) {
+    const id = el.dataset.id;
+    const card = state.cards[id];
+    if (!card) return;
+
+    if (!skipConfirm && !confirm(`Удалить карточку «${card.title}»?`)) return;
+
+    delete state.cards[id];
+    for (const col of state.columns) {
+      col.cardIds = col.cardIds.filter(x => x !== id);
+    }
+
+    animateRemoveCard(el);
+    updateCounts();
+    save();
+  }
+
+  function animateRemoveCard(el) {
+    const parent = el.parentElement;
+    const rect = el.getBoundingClientRect();
+
+    // «призрак» плавно исчезает, пока соседи перестраиваются
+    const ghost = el.cloneNode(true);
+    ghost.classList.add('ghost');
+    Object.assign(ghost.style, {
+      position: 'fixed',
+      left: rect.left + 'px',
+      top: rect.top + 'px',
+      width: rect.width + 'px',
+      height: rect.height + 'px',
+      margin: '0',
+      transformOrigin: 'center'
+    });
+    ghost.removeAttribute('draggable');
+    document.body.appendChild(ghost);
+    requestAnimationFrame(() => ghost.classList.add('ghost-out'));
+    setTimeout(() => ghost.remove(), 260);
+
+    const siblings = [...parent.querySelectorAll('.card')].filter(c => c !== el);
+    const first = new Map(siblings.map(c => [c, c.getBoundingClientRect()]));
+
+    el.remove();
+    animateFLIP(first);
+  }
+
+  /* ==================== Модальное окно ==================== */
+  let modalCtx = null; // { mode: 'create' | 'edit', columnId?, cardId? }
+  let hideTimer = null;
+
+  function showModal() {
+    clearTimeout(hideTimer);
+    modal.hidden = false;
+    void modal.offsetHeight; // reflow, чтобы сработал transition
+    modal.classList.add('open');
+    setTimeout(() => {
+      inpTitle.focus();
+      inpTitle.select();
+    }, 40);
+  }
+
+  function hideModal() {
+    modal.classList.remove('open');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { modal.hidden = true; }, 210);
+  }
+
+  function openCreate(columnId) {
+    modalCtx = { mode: 'create', columnId };
+    modalTitle.textContent = 'Новая карточка';
+    inpTitle.value = '';
+    inpDesc.value = '';
+    btnDelete.hidden = true;
+    inpTitle.classList.remove('invalid');
+    showModal();
+  }
+
+  function openEdit(cardId) {
+    const card = state.cards[cardId];
+    if (!card) return;
+    modalCtx = { mode: 'edit', cardId };
+    modalTitle.textContent = 'Редактировать карточку';
+    inpTitle.value = card.title;
+    inpDesc.value = card.desc || '';
+    btnDelete.hidden = false;
+    inpTitle.classList.remove('invalid');
+    showModal();
+  }
+
+  function commitModal() {
+    if (!modalCtx) return;
+
+    const title = inpTitle.value.trim();
+    if (!title) {
+      inpTitle.classList.add('invalid');
+      inpTitle.focus();
+      return;
+    }
+    const desc = inpDesc.value.trim();
+
+    if (modalCtx.mode === 'create') {
+      createCard(modalCtx.columnId, title, desc);
+    } else {
+      updateCard(modalCtx.cardId, title, desc);
+    }
+    hideModal();
+  }
+
+  /* ==================== События интерфейса ==================== */
+  boardEl.addEventListener('click', e => {
+    const delBtn = e.target.closest('.card-del');
+    if (delBtn) {
+      e.stopPropagation();
+      removeCard(delBtn.closest('.card'), false);
+      return;
+    }
+
+    const addBtn = e.target.closest('.add-btn');
+    if (addBtn) {
+      openCreate(addBtn.dataset.add);
+      return;
+    }
+
+    const cardEl = e.target.closest('.card');
+    if (cardEl) openEdit(cardEl.dataset.id);
+  });
+
+  btnSave.addEventListener('click', commitModal);
+  btnCancel.addEventListener('click', hideModal);
+
+  btnDelete.addEventListener('click', () => {
+    if (!modalCtx || modalCtx.mode !== 'edit') return;
+    const id = modalCtx.cardId;
+    const el = boardEl.querySelector(`.card[data-id="${id}"]`);
+    hideModal();
+    if (el) removeCard(el, true);
+  });
+
+  modal.addEventListener('mousedown', e => {
+    if (e.target === modal) hideModal();
+  });
+
+  inpTitle.addEventListener('input', () => inpTitle.classList.remove('invalid'));
+
+  document.addEventListener('keydown', e => {
+    if (modal.hidden) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      hideModal();
+    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      commitModal();
+    }
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if (!confirm('Сбросить доску? Все карточки будут заменены демонстрационными.')) return;
+    state = seedState();
+    render();
+    save();
+  });
+
+  /* ==================== Старт ==================== */
+  state = load();
+  render();
+})();
+</script>
+</body>
+</html>

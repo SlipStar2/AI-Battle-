@@ -1,0 +1,762 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Канбан-доска</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 30px;
+    font-family: Arial, sans-serif;
+    background: #111318;
+    color: #f1f2f5;
+}
+
+.container {
+    max-width: 1400px;
+    margin: auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
+
+h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.subtitle {
+    color: #9298a5;
+    margin-top: 7px;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-size: 14px;
+    transition: .2s;
+}
+
+button:hover {
+    opacity: .85;
+    transform: translateY(-1px);
+}
+
+.add-btn {
+    background: #ff6a2b;
+    color: white;
+    font-weight: bold;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.stat {
+    background: #1c2028;
+    border: 1px solid #2b303a;
+    padding: 18px;
+    border-radius: 12px;
+}
+
+.stat-label {
+    color: #9298a5;
+    font-size: 13px;
+}
+
+.stat-value {
+    font-size: 26px;
+    font-weight: bold;
+    margin-top: 8px;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    align-items: start;
+}
+
+.column {
+    background: #1a1e26;
+    border: 1px solid #2b303a;
+    border-radius: 12px;
+    min-height: 300px;
+    overflow: hidden;
+}
+
+.column-header {
+    padding: 17px;
+    border-bottom: 1px solid #303540;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+}
+
+.counter {
+    background: #303641;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.cards {
+    padding: 12px;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: background .2s;
+}
+
+.cards.drag-over {
+    background: #34303a;
+    outline: 2px dashed #ff6a2b;
+    outline-offset: -4px;
+}
+
+.card {
+    background: #252a34;
+    border: 1px solid #383f4c;
+    padding: 14px;
+    border-radius: 9px;
+    cursor: grab;
+    animation: appear .2s ease;
+    transition: transform .2s, opacity .2s, box-shadow .2s;
+}
+
+.card:hover {
+    border-color: #ff6a2b;
+}
+
+.card.dragging {
+    opacity: .35;
+    transform: scale(.96);
+}
+
+.card-title {
+    font-weight: bold;
+    overflow-wrap: anywhere;
+    margin-bottom: 8px;
+}
+
+.card-description {
+    color: #a6adba;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 7px;
+    margin-top: 12px;
+}
+
+.edit-btn {
+    background: #343b48;
+    color: white;
+}
+
+.delete-btn {
+    background: #552c31;
+    color: #ffaaaa;
+}
+
+.column-add {
+    width: calc(100% - 24px);
+    margin: 0 12px 12px;
+    background: #292f39;
+    color: #c4c9d2;
+}
+
+.empty {
+    color: #747d8b;
+    text-align: center;
+    padding: 25px 10px;
+    font-size: 13px;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.75);
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    z-index: 10;
+}
+
+.modal-content {
+    background: #1c2028;
+    border: 1px solid #353b47;
+    padding: 25px;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 450px;
+}
+
+.modal h2 {
+    margin-top: 0;
+}
+
+label {
+    display: block;
+    margin: 15px 0 7px;
+    color: #aab0bb;
+    font-size: 13px;
+}
+
+input, textarea, select {
+    width: 100%;
+    background: #11151c;
+    color: white;
+    border: 1px solid #383f4c;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 14px;
+    outline: none;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: #ff6a2b;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.cancel-btn {
+    background: #343b48;
+    color: white;
+}
+
+.save-btn {
+    background: #ff6a2b;
+    color: white;
+    font-weight: bold;
+}
+
+.footer {
+    margin-top: 20px;
+    color: #747d8b;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.clear-btn {
+    color: #e58a8a;
+    background: transparent;
+    padding: 0;
+}
+
+@keyframes appear {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media(max-width: 800px) {
+    body {
+        padding: 15px;
+    }
+
+    .board {
+        grid-template-columns: 1fr;
+    }
+
+    .stats {
+        gap: 8px;
+    }
+
+    .stat {
+        padding: 12px;
+    }
+
+    .stat-value {
+        font-size: 22px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <div>
+            <h1>Моя канбан-доска</h1>
+            <div class="subtitle">
+                Управление задачами и проектами
+            </div>
+        </div>
+
+        <button class="add-btn" onclick="openModal()">
+            + Новая задача
+        </button>
+    </div>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-label">Всего задач</div>
+            <div class="stat-value" id="total">0</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">В работе</div>
+            <div class="stat-value" id="progress">0</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">Выполнено</div>
+            <div class="stat-value" id="done">0</div>
+        </div>
+    </div>
+
+    <div class="board">
+
+        <div class="column">
+            <div class="column-header">
+                К выполнению
+                <span class="counter" id="count-todo">0</span>
+            </div>
+
+            <div class="cards" id="todo"
+                 data-status="todo"></div>
+
+            <button class="column-add"
+                    onclick="openModal(null, 'todo')">
+                + Добавить карточку
+            </button>
+        </div>
+
+        <div class="column">
+            <div class="column-header">
+                В работе
+                <span class="counter" id="count-progress">0</span>
+            </div>
+
+            <div class="cards" id="progress-list"
+                 data-status="progress"></div>
+
+            <button class="column-add"
+                    onclick="openModal(null, 'progress')">
+                + Добавить карточку
+            </button>
+        </div>
+
+        <div class="column">
+            <div class="column-header">
+                Готово
+                <span class="counter" id="count-done">0</span>
+            </div>
+
+            <div class="cards" id="done-list"
+                 data-status="done"></div>
+
+            <button class="column-add"
+                    onclick="openModal(null, 'done')">
+                + Добавить карточку
+            </button>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        <span id="save-status">
+            ● Автоматическое сохранение включено
+        </span>
+
+        <button class="clear-btn" onclick="clearBoard()">
+            Очистить доску
+        </button>
+    </div>
+
+</div>
+
+<!-- Окно создания и редактирования -->
+
+<div class="modal" id="modal">
+    <div class="modal-content">
+
+        <h2 id="modal-title">Новая задача</h2>
+
+        <label>Заголовок</label>
+        <input id="title" maxlength="100"
+               placeholder="Название задачи">
+
+        <label>Описание</label>
+        <textarea id="description" maxlength="1000"
+                  placeholder="Описание задачи..."></textarea>
+
+        <label>Колонка</label>
+        <select id="status">
+            <option value="todo">К выполнению</option>
+            <option value="progress">В работе</option>
+            <option value="done">Готово</option>
+        </select>
+
+        <div class="modal-actions">
+            <button class="cancel-btn" onclick="closeModal()">
+                Отмена
+            </button>
+
+            <button class="save-btn" onclick="saveCard()">
+                Сохранить
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+
+// =====================================
+// НАСТРОЙКИ
+// =====================================
+
+const STORAGE_KEY = 'dimka_kanban_board_v1';
+
+const columns = {
+    todo: 'К выполнению',
+    progress: 'В работе',
+    done: 'Готово'
+};
+
+let cards = [];
+let editingId = null;
+let draggedId = null;
+
+
+// =====================================
+// ЗАГРУЗКА И СОХРАНЕНИЕ
+// =====================================
+
+function loadCards() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const parsed = saved ? JSON.parse(saved) : [];
+
+        if (Array.isArray(parsed)) {
+            cards = parsed.filter(card =>
+                card &&
+                typeof card.id === 'string' &&
+                typeof card.title === 'string' &&
+                columns[card.status]
+            );
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки:', error);
+        cards = [];
+    }
+}
+
+function saveCards() {
+    try {
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(cards)
+        );
+
+        document.getElementById('save-status').textContent =
+            '● Изменения сохранены';
+    } catch (error) {
+        document.getElementById('save-status').textContent =
+            'Ошибка сохранения данных';
+    }
+}
+
+
+// =====================================
+// ОТРИСОВКА ДОСКИ
+// =====================================
+
+function renderBoard() {
+
+    const containers = {
+        todo: document.getElementById('todo'),
+        progress: document.getElementById('progress-list'),
+        done: document.getElementById('done-list')
+    };
+
+    Object.keys(columns).forEach(status => {
+
+        const list = cards.filter(
+            card => card.status === status
+        );
+
+        containers[status].innerHTML = '';
+
+        if (list.length === 0) {
+            containers[status].innerHTML =
+                '<div class="empty">Пока нет задач</div>';
+        }
+
+        list.forEach(card => {
+
+            const element = document.createElement('div');
+
+            element.className = 'card';
+            element.draggable = true;
+            element.dataset.id = card.id;
+
+            const title = document.createElement('div');
+            title.className = 'card-title';
+            title.textContent = card.title;
+
+            const description = document.createElement('div');
+            description.className = 'card-description';
+            description.textContent = card.description || '';
+
+            const actions = document.createElement('div');
+            actions.className = 'card-actions';
+
+            const editButton = document.createElement('button');
+            editButton.className = 'edit-btn';
+            editButton.textContent = 'Изменить';
+            editButton.onclick = () => openModal(card.id);
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'delete-btn';
+            deleteButton.textContent = 'Удалить';
+            deleteButton.onclick = () => deleteCard(card.id);
+
+            actions.append(editButton, deleteButton);
+
+            element.append(title, description, actions);
+
+            containers[status].appendChild(element);
+
+            element.addEventListener('dragstart', event => {
+                draggedId = card.id;
+                element.classList.add('dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', card.id);
+            });
+
+            element.addEventListener('dragend', () => {
+                element.classList.remove('dragging');
+                draggedId = null;
+                document.querySelectorAll('.cards')
+                    .forEach(el => el.classList.remove('drag-over'));
+            });
+
+        });
+
+    });
+
+    updateCounters();
+}
+
+
+// =====================================
+// СЧЁТЧИКИ
+// =====================================
+
+function updateCounters() {
+
+    const todo = cards.filter(c => c.status === 'todo').length;
+    const progress = cards.filter(c => c.status === 'progress').length;
+    const done = cards.filter(c => c.status === 'done').length;
+
+    document.getElementById('count-todo').textContent = todo;
+    document.getElementById('count-progress').textContent = progress;
+    document.getElementById('count-done').textContent = done;
+
+    document.getElementById('total').textContent = cards.length;
+    document.getElementById('progress').textContent = progress;
+    document.getElementById('done').textContent = done;
+}
+
+
+// =====================================
+// СОЗДАНИЕ / РЕДАКТИРОВАНИЕ
+// =====================================
+
+function openModal(id = null, status = 'todo') {
+
+    editingId = id;
+
+    const card = cards.find(c => c.id === id);
+
+    document.getElementById('modal-title').textContent =
+        card ? 'Редактирование задачи' : 'Новая задача';
+
+    document.getElementById('title').value =
+        card ? card.title : '';
+
+    document.getElementById('description').value =
+        card ? card.description : '';
+
+    document.getElementById('status').value =
+        card ? card.status : status;
+
+    document.getElementById('modal').style.display = 'flex';
+
+    document.getElementById('title').focus();
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+function saveCard() {
+
+    const title = document.getElementById('title').value.trim();
+    const description =
+        document.getElementById('description').value.trim();
+
+    const status = document.getElementById('status').value;
+
+    if (!title) {
+        alert('Введите заголовок задачи!');
+        return;
+    }
+
+    if (editingId) {
+
+        const card = cards.find(c => c.id === editingId);
+
+        if (card) {
+            card.title = title;
+            card.description = description;
+            card.status = status;
+        }
+
+    } else {
+
+        cards.push({
+            id: crypto.randomUUID
+                ? crypto.randomUUID()
+                : Date.now().toString(36) + Math.random().toString(36).slice(2),
+            title,
+            description,
+            status
+        });
+
+    }
+
+    saveCards();
+    renderBoard();
+    closeModal();
+}
+
+
+// =====================================
+// УДАЛЕНИЕ
+// =====================================
+
+function deleteCard(id) {
+
+    if (!confirm('Удалить эту карточку?')) {
+        return;
+    }
+
+    cards = cards.filter(card => card.id !== id);
+
+    saveCards();
+    renderBoard();
+}
+
+function clearBoard() {
+
+    if (!confirm('Удалить ВСЕ карточки?')) {
+        return;
+    }
+
+    cards = [];
+
+    saveCards();
+    renderBoard();
+}
+
+
+// =====================================
+// ПЕРЕТАСКИВАНИЕ КАРТОЧЕК
+// =====================================
+
+document.querySelectorAll('.cards').forEach(container => {
+
+    container.addEventListener('dragover', event => {
+        event.preventDefault();
+        container.classList.add('drag-over');
+    });
+
+    container.addEventListener('dragleave', event => {
+        if (!container.contains(event.relatedTarget)) {
+            container.classList.remove('drag-over');
+        }
+    });
+
+    container.addEventListener('drop', event => {
+
+        event.preventDefault();
+
+        container.classList.remove('drag-over');
+
+        const id = event.dataTransfer.getData('text/plain') || draggedId;
+
+        const card = cards.find(c => c.id === id);
+
+        if (!card) return;
+
+        card.status = container.dataset.status;
+
+        saveCards();
+        renderBoard();
+
+    });
+
+});
+
+
+// =====================================
+// ЗАПУСК
+// =====================================
+
+loadCards();
+renderBoard();
+
+</script>
+
+</body>
+</html>

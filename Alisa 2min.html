@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban-доска</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            background: #f0f2f5; color: #2b2d31;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 40px 20px;
+        }
+        h1 { margin-bottom: 24px; font-size: 24px; }
+
+        .board {
+            display: flex; gap: 24px; width: 90%; max-width: 1200px;
+            background: #fff; border-radius: 12px; padding: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .column {
+            flex: 1; min-width: 280px; background: #f7f8fa;
+            border-radius: 12px; padding: 20px; display: flex; flex-direction: column;
+            transition: background 0.3s;
+        }
+        .column.drag-over { background: #e6f0ff; }
+
+        .column-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 16px; font-size: 18px; font-weight: 600;
+        }
+        .counter {
+            background: #3b82f6; color: #fff; border-radius: 999px;
+            padding: 4px 10px; font-size: 14px; font-weight: 700;
+        }
+
+        .add-form {
+            display: flex; gap: 8px; margin-top: 12px;
+        }
+        .add-form input {
+            flex: 1; padding: 10px 12px; border: 1px solid #d1d5db;
+            border-radius: 8px; font-size: 14px; outline: none;
+        }
+        .add-form button {
+            padding: 10px 14px; background: #3b82f6; color: #fff;
+            border: none; border-radius: 8px; cursor: pointer;
+        }
+        .add-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .tasks { flex: 1; overflow-y: auto; }
+
+        .card {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 14px; margin-bottom: 12px; transition: all 0.25s;
+            draggable="true";
+        }
+        .card.dragging { opacity: 0.5; }
+
+        .card-title { font-weight: 700; margin-bottom: 6px; }
+        .card-desc { font-size: 13px; color: #64748b; margin-bottom: 12px; }
+
+        .card-actions { display: flex; gap: 8px; margin-top: 8px; }
+        .btn {
+            padding: 6px 10px; border: none; border-radius: 6px;
+            cursor: pointer; font-size: 13px;
+        }
+        .btn-edit { background: #eaa35a; color: #333; }
+        .btn-del { background: #ef4444; color: #fff; }
+
+        /* Плавное появление новой карточки */
+        .card.new-card {
+            opacity: 0; transform: translateY(12px);
+            transition: opacity 0.4s, transform 0.4s;
+        }
+        .card.new-card.visible { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body>
+
+<h1>Kanban-доска</h1>
+
+<div class="board" id="board">
+    <div class="column" id="col-todo">
+        <div class="column-header">
+            <span>К выполнению</span>
+            <span class="counter">0</span>
+        </div>
+        <div class="tasks" id="tasks-todo"></div>
+        <form class="add-form" id="form-todo">
+            <input type="text" id="inp-todo" placeholder="Заголовок задачи…">
+            <button type="button">Добавить</button>
+        </form>
+    </div>
+
+    <div class="column" id="col-inprogress">
+        <div class="column-header">
+            <span>В работе</span>
+            <span class="counter">0</span>
+        </div>
+        <div class="tasks" id="tasks-inprogress"></div>
+        <form class="add-form" id="form-inprogress">
+            <input type="text" id="inp-inprogress" placeholder="Заголовок задачи…">
+            <button type="button">Добавить</button>
+        </form>
+    </div>
+
+    <div class="column" id="col-done">
+        <div class="column-header">
+            <span>Готово</span>
+            <span class="counter">0</span>
+        </div>
+        <div class="tasks" id="tasks-done"></div>
+        <form class="add-form" id="form-done">
+            <input type="text" id="inp-done" placeholder="Заголовок задачи…">
+            <button type="button">Добавить</button>
+        </form>
+    </div>
+</div>
+
+<script>
+const COLS = {
+    todo: { id: 'col-todo', title: 'К выполнению', tasksId: 'tasks-todo', counterId: 'col-todo .counter', inpId: 'inp-todo', formId: 'form-todo' },
+    'in-progress': { id: 'col-inprogress', title: 'В работе', tasksId: 'tasks-inprogress', counterId: 'col-inprogress .counter', inpId: 'inp-inprogress', formId: 'form-inprogress' },
+    done: { id: 'col-done', title: 'Готово', tasksId: 'tasks-done', counterId: 'col-done .counter', inpId: 'inp-done', formId: 'form-done' }
+};
+
+let state = { columns: [] };
+let draggedCardId = null;
+let draggedCardData = null; // { cardId, columnId, index }
+
+function load() {
+    const raw = localStorage.getItem('kanban-state');
+    state = JSON.parse(raw) || { columns: [] };
+    if (!state.columns.length) {
+        state.columns = [
+            { id: 'col-todo', title: 'К выполнению', cards: [] },
+            { id: 'col-in-progress', title: 'В работе', cards: [] },
+            { id: 'col-done', title: 'Готово', cards: [] }
+        ];
+    }
+    render();
+}
+
+function genId() { return Math.random().toString(36).substring(7); }
+
+function render() {
+    state.columns.forEach(col => {
+        const colEl = document.getElementById(col.id);
+        const tasksEl = document.getElementById(COLS[col.id].tasksId);
+        const counterEl = document.querySelector(COLS[col.id].counterId);
+        counterEl.textContent = col.cards.length;
+
+        tasksEl.innerHTML = col.cards.map((card, idx) => `
+            <div class="card ${card.id === draggedCardId ? 'dragging' : ''}" draggable="true" data-column="${col.id}" data-index="${idx}">
+                <div class="card-title">${escapeHtml(card.title)}</div>
+                <div class="card-desc">${escapeHtml(card.description || '')}</div>
+                <div class="card-actions">
+                    <button class="btn btn-edit" data-card="${card.id}">Редактировать</button>
+                    <button class="btn btn-del" data-card="${card.id}">Удалить</button>
+                </div>
+            </div>
+        `).join('');
+
+        // Назначаем обработчики заново
+        tasksEl.querySelectorAll('.card').forEach(el => {
+            el.addEventListener('dragstart', handleDragStart);
+            el.addEventListener('dragend', handleDragEnd);
+        });
+        tasksEl.querySelectorAll('.btn-edit').forEach(b => b.addEventListener('click', handleEdit));
+        tasksEl.querySelectorAll('.btn-del').forEach(b => b.addEventListener('click', handleDelete));
+    });
+
+    // Формы
+    Object.values(COLS).forEach(c => {
+        const form = document.getElementById(c.formId);
+        const inp = document.getElementById(c.inpId);
+        inp.value = '';
+        form.querySelector('button').disabled = true;
+        inp.addEventListener('input', () => { form.querySelector('button').disabled = !inp.value.trim(); });
+    });
+}
+
+function escapeHtml(t) {
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
+}
+
+function save() {
+    localStorage.setItem('kanban-state', JSON.stringify(state));
+}
+
+function handleDragStart(e) {
+    const card = e.target;
+    draggedCardId = card.id;
+    draggedCardData = {
+        cardId: card.id,
+        columnId: card.dataset.column,
+        index: parseInt(card.dataset.index)
+    };
+    e.dataTransfer.setData('text/plain', card.id);
+    card.classList.add('dragging');
+    e.dataTransfer.effect = 'move';
+}
+
+function handleDragEnd(e) {
+    if (e.target.classList.contains('dragging')) e.target.classList.remove('dragging');
+    draggedCardId = null;
+    draggedCardData = null;
+}
+
+function handleDragOver(e, colId) {
+    e.preventDefault();
+    const colEl = document.getElementById(colId);
+    if (colEl) colEl.classList.add('drag-over');
+}
+
+function handleDragLeave(e, colId) {
+    const colEl = document.getElementById(colId);
+    if (colEl && !e.relatedTarget || !colEl.contains(e.relatedTarget)) {
+        colEl.classList.remove('drag-over');
+    }
+}
+
+function handleDrop(e, toColId) {
+    e.preventDefault();
+    const colEl = document.getElementById(toColId);
+    if (colEl) colEl.classList.remove('drag-over');
+
+    if (!draggedCardData) return;
+
+    const fromColId = draggedCardData.columnId;
+    const cardId = draggedCardData.cardId;
+
+    if (fromColId === toColId) {
+        // Перемещение внутри колонки: определяем позицию через координату курсора
+        const rect = e.target.getBoundingClientRect();
+        const y = e.clientY;
+        let targetIndex = 0;
+        const cards = colEl.querySelectorAll('.card');
+        for (let i = 0; i < cards.length; i++) {
+            const r = cards[i].getBoundingClientRect();
+            const center = r.top + r.height / 2;
+            if (y > center) targetIndex = i + 1;
+            else break;
+        }
+        // Удаляем
+        const fromCol = state.columns.find(c => c.id === fromColId);
+        const cardIdx = fromCol.cards.findIndex(c => c.id === cardId);
+        fromCol.cards.splice(cardIdx, 1);
+        // Вставляем (с коррекцией, если сдвиг произошёл)
+        if (targetIndex > cardIdx) targetIndex--;
+        fromCol.cards.splice(targetIndex, 0, fromCol.cards[cardIdx] || {}); // ошибка: card уже удалён
+
+        // Правильнее: сохранить объект перед удалением
+        const cardObj = state.columns.find(c => c.id === fromColId).cards.find(c => c.id === cardId);
+        state.columns.find(c => c.id === fromColId).cards.splice(cardIdx, 1);
+        state.columns.find(c => c.id === toColId).cards.splice(targetIndex, 0, cardObj);
+    } else {
+        const fromCol = state.columns.find(c => c.id === fromColId);
+        const toCol = state.columns.find(c => c.id === toColId);
+        const cardObj = fromCol.cards.find(c => c.id === cardId);
+        fromCol.cards = fromCol.cards.filter(c => c.id !== cardId);
+        toCol.cards.push(cardObj);
+    }
+
+    save();
+    render();
+}
+
+// Инициализация колонок
+Object.values(COLS).forEach(c => {
+    const tasks = document.getElementById(c.tasksId);
+    tasks.addEventListener('dragover', (e) => { handleDragOver(e, c.id); e.preventDefault(); });
+    tasks.addEventListener('drop', (e) => { handleDrop(e, c.id); });
+    tasks.addEventListener('dragleave', (e) => { handleDragLeave(e, c.id); });
+});
+
+// Добавление задачи
+Object.values(COLS).forEach(c => {
+    const form = document.getElementById(c.formId);
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const inp = document.getElementById(c.inpId);
+        const text = inp.value.trim();
+        if (!text) return;
+        const col = state.columns.find(x => x.id === c.id);
+        const newCard = { id: genId(), title: text, description: '' };
+        col.cards.push(newCard);
+        save();
+        render();
+        inp.value = '';
+    });
+});
+
+function handleEdit(e) {
+    const cardId = e.target.dataset.card;
+    const card = state.columns.flatMap(c => c.cards).find(x => x.id === cardId);
+    if (!card) return;
+    const title = prompt('Заголовок:', card.title);
+    const desc = prompt('Описание:', card.description);
+    if (title !== null) {
+        card.title = title.trim();
+        card.description = desc !== null ? desc.trim() : '';
+        save();
+        render();
+    }
+}
+
+function handleDelete(e) {
+    const cardId = e.target.dataset.card;
+    state.columns = state.columns.map(col => ({
+        ...col, cards: col.cards.filter(c => c.id !== cardId)
+    }));
+    save();
+    render();
+}
+
+load();
+</script>
+
+</body>
+</html>
