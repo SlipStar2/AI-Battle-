@@ -4,21 +4,122 @@
   "status": "preparation",
   "max_score": 60,
   "criteria": [
-    {"id": "design", "title": "Дизайн и удобство", "max": 10},
-    {"id": "create", "title": "Создание карточек", "max": 10},
-    {"id": "edit_delete", "title": "Редактирование и удаление", "max": 10},
-    {"id": "drag_drop", "title": "Перетаскивание", "max": 10},
-    {"id": "storage", "title": "Сохранение данных", "max": 10},
-    {"id": "stability", "title": "Стабильность", "max": 10}
+    {
+      "id": "design",
+      "title": "Дизайн и удобство",
+      "max": 10
+    },
+    {
+      "id": "create",
+      "title": "Создание карточек",
+      "max": 10
+    },
+    {
+      "id": "edit_delete",
+      "title": "Редактирование и удаление",
+      "max": 10
+    },
+    {
+      "id": "drag_drop",
+      "title": "Перетаскивание",
+      "max": 10
+    },
+    {
+      "id": "storage",
+      "title": "Сохранение данных",
+      "max": 10
+    },
+    {
+      "id": "stability",
+      "title": "Стабильность",
+      "max": 10
+    }
   ],
   "participants": [
-    {"id":"chatgpt","name":"ChatGPT","provider":"OpenAI","model":null,"tested_at":null,"status":"pending","scores":null,"manual_changes":[]},
-    {"id":"claude","name":"Claude","provider":"Anthropic","model":null,"tested_at":null,"status":"pending","scores":null,"manual_changes":[]},
-    {"id":"deepseek","name":"DeepSeek","provider":"DeepSeek","model":null,"tested_at":null,"status":"pending","scores":null,"manual_changes":[]},
-    {"id":"grok","name":"Grok","provider":"xAI","model":null,"tested_at":null,"status":"pending","scores":null,"manual_changes":[]},
-    {"id":"qwen","name":"Qwen","provider":"Alibaba","model":null,"tested_at":null,"status":"pending","scores":null,"manual_changes":[]},
-    {"id":"kimi","name":"Kimi","provider":"Moonshot AI","model":null,"tested_at":null,"status":"pending","scores":null,"manual_changes":[]},
-    {"id":"alice","name":"Алиса","provider":"Яндекс","model":null,"tested_at":null,"status":"pending","scores":null,"manual_changes":[]}
+    {
+      "id": "chatgpt",
+      "name": "ChatGPT",
+      "provider": "OpenAI",
+      "model": null,
+      "tested_at": null,
+      "status": "demo_ready",
+      "scores": null,
+      "manual_changes": [],
+      "generation_time_minutes": 1,
+      "source_file": "GptChat 1min.html"
+    },
+    {
+      "id": "claude",
+      "name": "Claude",
+      "provider": "Anthropic",
+      "model": null,
+      "tested_at": null,
+      "status": "demo_ready",
+      "scores": null,
+      "manual_changes": [],
+      "generation_time_minutes": 2,
+      "source_file": "Claud 2min.html"
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "provider": "DeepSeek",
+      "model": null,
+      "tested_at": null,
+      "status": "demo_ready",
+      "scores": null,
+      "manual_changes": [],
+      "generation_time_minutes": 1,
+      "source_file": "deepseek 1 min.html"
+    },
+    {
+      "id": "grok",
+      "name": "Grok",
+      "provider": "xAI",
+      "model": null,
+      "tested_at": null,
+      "status": "pending",
+      "scores": null,
+      "manual_changes": []
+    },
+    {
+      "id": "qwen",
+      "name": "Qwen",
+      "provider": "Alibaba",
+      "model": null,
+      "tested_at": null,
+      "status": "demo_ready",
+      "scores": null,
+      "manual_changes": [],
+      "generation_time_minutes": 6,
+      "source_file": "Qwen 6min.html"
+    },
+    {
+      "id": "kimi",
+      "name": "Kimi",
+      "provider": "Moonshot AI",
+      "model": null,
+      "tested_at": null,
+      "status": "pending",
+      "scores": null,
+      "manual_changes": []
+    },
+    {
+      "id": "alice",
+      "name": "Алиса",
+      "provider": "Яндекс",
+      "model": null,
+      "tested_at": null,
+      "status": "demo_ready",
+      "scores": null,
+      "manual_changes": [],
+      "generation_time_minutes": 2,
+      "source_file": "Alisa 2min.html"
+    }
   ],
-  "audience_vote": {"method":"Telegram poll","status":"not_started","results":null}
+  "audience_vote": {
+    "method": "Telegram poll",
+    "status": "not_started",
+    "results": null
+  }
 }
