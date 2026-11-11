@@ -112,11 +112,14 @@
       "provider": "Яндекс",
       "model": null,
       "tested_at": null,
-      "status": "demo_ready",
+      "status": "needs_review",
       "scores": null,
       "manual_changes": [],
       "generation_time_minutes": 2,
-      "source_file": "Alisa 2min.html"
+      "source_file": "Alisa 2min.html",
+      "review_notes": [
+        "Предварительно обнаружено несоответствие: в объекте COLS ключи todo/in-progress/done, но render обращается к COLS по id вида col-todo/col-in-progress/col-done. Возможна ошибка инициализации; требуется запуск и проверка. Исходник не исправлялся."
+      ]
     }
   ],
   "audience_vote": {
