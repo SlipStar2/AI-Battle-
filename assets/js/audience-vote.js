@@ -11,7 +11,7 @@
   const form = document.getElementById('audienceVoteForm');
   const status = document.getElementById('voteStatus');
   const results = document.getElementById('audienceResults');
-  if (!form || !window.AI_BATTLE_SUPABASE || !window.supabase) return;
+  if (!window.AI_BATTLE_SUPABASE || !window.supabase) return;
 
   const client = window.supabase.createClient(
     window.AI_BATTLE_SUPABASE.url,
@@ -52,7 +52,7 @@
     }).join('');
   }
 
-  form.addEventListener('submit', async event => {
+  if (form) form.addEventListener('submit', async event => {
     event.preventDefault();
     const submit = form.querySelector('button[type="submit"]');
     const ratings = {};
