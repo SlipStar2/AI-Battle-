@@ -129,7 +129,10 @@
 
       if (error) {
         if (error.code === '23505') {
-          setStatus('С этого браузера голос уже отправляли. Повторно засчитать его нельзя.', 'error');
+          setStatus('С этого браузера голос уже отправляли. Повторно засчитать новые оценки нельзя.', 'error');
+          submit.disabled = true;
+          submit.textContent = 'Голос уже отправлен';
+          return;
         } else {
           setStatus('Не удалось отправить голос. Ваши оценки сохранены на устройстве — попробуйте ещё раз позже. (' + error.message + ')', 'error');
           submit.disabled = false;
