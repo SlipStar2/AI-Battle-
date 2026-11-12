@@ -50,6 +50,7 @@
     const count = Object.keys(state.ratings).filter(id => participants.some(p => p.id === id)).length;
     progress.style.width = (count / participants.length * 100) + '%';
     progressText.textContent = 'Оценено ' + count + ' из 6 участников';
+    root.classList.toggle('is-rated', Boolean(state.ratings[participant]));
   };
   const showNext = () => {
     next.hidden = false;
