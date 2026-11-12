@@ -113,9 +113,17 @@
     }
   ],
   "audience_vote": {
-    "method": "Telegram poll",
-    "status": "not_started",
+    "method": "Website form backed by Supabase",
+    "status": "open",
+    "rating_scale": "1-5 for each of six participants",
+    "favorite_selection": true,
+    "results_source": "public.battle_vote_totals",
     "results": null
   },
-  "participant_count": 6
+  "participant_count": 6,
+  "mobile_bonus": {
+    "max_score": 5,
+    "required_in_original_prompt": false,
+    "description": "Separate bonus for independently implemented mobile adaptation; not part of the original task."
+  }
 }
