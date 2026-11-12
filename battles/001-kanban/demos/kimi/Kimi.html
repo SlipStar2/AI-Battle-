@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Канбан-доска</title>
+<style>
+:root {
+  --kimi-font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --kimi-color-text-primary: #1f2329;
+  --kimi-color-text-secondary: #646a73;
+  --kimi-color-text-tertiary: #8f959e;
+  --kimi-color-text-quaternary: #bbbfc4;
+  --kimi-color-surface: #ffffff;
+  --kimi-color-surface-muted: #f5f6f7;
+  --kimi-color-surface-raised: #ffffff;
+  --kimi-color-surface-strong: #eceef0;
+  --kimi-color-border: #e3e5e8;
+  --kimi-color-danger: #d83931;
+  --kimi-color-positive: #2ea44f;
+  --kimi-chart-1: #3370ff;
+  --kimi-chart-4: #7f3bf5;
+  --t-micro: 60ms; --t-fast: 120ms; --t-normal: 200ms; --t-slow: 300ms;
+  --ease-out: cubic-bezier(.2,0,0,1);
+  --ease-standard: cubic-bezier(.4,0,.2,1);
+  --page-bg: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --kimi-color-text-primary: #e8eaed;
+    --kimi-color-text-secondary: #a9aeb8;
+    --kimi-color-text-tertiary: #7d828b;
+    --kimi-color-text-quaternary: #565b64;
+    --kimi-color-surface: #1d1f23;
+    --kimi-color-surface-muted: #26282e;
+    --kimi-color-surface-raised: #2c2e35;
+    --kimi-color-surface-strong: #3a3d45;
+    --kimi-color-border: #3a3d45;
+    --kimi-color-danger: #f05b52;
+    --kimi-color-positive: #4bbe6d;
+    --kimi-chart-1: #4d7dff;
+    --kimi-chart-4: #9a6bff;
+    --page-bg: #17181c;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px; background: var(--page-bg); }
+#app { font-family: var(--kimi-font-sans); position: relative; max-width: 1100px; margin: 0 auto; }
+#app button, #app input, #app textarea { font: inherit; }
+.kb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.kb-title { font-size: 17px; font-weight: 500; color: var(--kimi-color-text-primary); }
+.board { display: flex; gap: 12px; align-items: flex-start; }
+.col { flex: 1 1 0; min-width: 190px; background: var(--kimi-color-surface-muted); border-radius: 16px; padding: 8px; display: flex; flex-direction: column; transition: outline-color var(--t-fast) var(--ease-out); outline: 1.5px dashed transparent; outline-offset: -1.5px; }
+.col.hint { outline-color: var(--kimi-color-text-quaternary); }
+.col-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--kimi-color-text-quaternary)); flex: none; }
+.col-title { font-size: 14px; font-weight: 500; color: var(--kimi-color-text-primary); }
+.count { margin-left: auto; font-size: 12px; color: var(--kimi-color-text-tertiary); background: var(--kimi-color-surface-strong); border-radius: 6px; padding: 1px 8px; font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+.list { display: flex; flex-direction: column; gap: 8px; min-height: 56px; }
+.list:empty::after { content: "Перетащите карточку сюда"; display: block; border: 1px dashed var(--kimi-color-border); border-radius: 8px; padding: 16px 8px; text-align: center; font-size: 12px; color: var(--kimi-color-text-quaternary); }
+.card { background: var(--kimi-color-surface-raised); border: 1px solid var(--kimi-color-border); border-radius: 8px; padding: 10px 12px; cursor: grab; position: relative; touch-action: none; transition: transform var(--t-normal) var(--ease-standard), box-shadow var(--t-fast) var(--ease-out); }
+.card:hover { box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.card.shifting { transition: transform var(--t-normal) var(--ease-standard); }
+.card.drag-source { opacity: 0; }
+.card.drag-clone { position: absolute; margin: 0; cursor: grabbing; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,.22); pointer-events: none; opacity: .97; }
+.card-title { font-size: 14px; font-weight: 500; color: var(--kimi-color-text-primary); line-height: 20px; overflow-wrap: anywhere; }
+.card-desc { font-size: 12px; color: var(--kimi-color-text-secondary); line-height: 18px; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.card-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; opacity: 0; transition: opacity var(--t-fast) var(--ease-out); background: var(--kimi-color-surface-raised); border-radius: 8px; }
+.card:hover .card-actions, .card:focus-within .card-actions { opacity: 1; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: 8px; background: transparent; color: var(--kimi-color-text-secondary); cursor: pointer; transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out); padding: 0; }
+.icon-btn:hover { background: var(--kimi-color-surface-strong); color: var(--kimi-color-text-primary); }
+.icon-btn.danger:hover { color: var(--kimi-color-danger); }
+.card-actions .icon-btn { width: 24px; height: 24px; }
+.add-btn { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 7px 10px; border: none; border-radius: 8px; background: transparent; color: var(--kimi-color-text-secondary); font-size: 13px; cursor: pointer; transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out); }
+.add-btn:hover { background: var(--kimi-color-surface-strong); color: var(--kimi-color-text-primary); }
+.backdrop { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.24); border-radius: 16px; z-index: 30; }
+.backdrop.open { display: flex; }
+.modal { width: min(360px, 92%); background: var(--kimi-color-surface-raised); border: 1px solid var(--kimi-color-border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 500; color: var(--kimi-color-text-primary); }
+.fld { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--kimi-color-text-tertiary); }
+.fld input, .fld textarea { border: 1px solid var(--kimi-color-border); border-radius: 10px; padding: 8px 10px; font-size: 14px; color: var(--kimi-color-text-primary); background: var(--kimi-color-surface); resize: vertical; outline: none; transition: border-color var(--t-fast) var(--ease-out); }
+.fld input:focus, .fld textarea:focus { border-color: var(--kimi-color-text-primary); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.btn { border: 1px solid var(--kimi-color-border); background: transparent; color: var(--kimi-color-text-primary); border-radius: 10px; padding: 7px 14px; font-size: 14px; cursor: pointer; transition: background var(--t-fast) var(--ease-out); }
+.btn:hover { background: var(--kimi-color-surface-strong); }
+.btn.primary { background: var(--kimi-color-text-primary); color: var(--kimi-color-surface); border-color: var(--kimi-color-text-primary); }
+.btn.primary:hover { opacity: .85; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="kb-head">
+    <span class="kb-title">Канбан-доска</span>
+    <button class="icon-btn ghost" id="resetBtn" title="Сбросить доску"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 4.5C7.85775 4.5 4.5 7.85775 4.5 12C4.5 16.1423 7.85775 19.5 12 19.5C16.1423 19.5 19.5 16.1423 19.5 12C19.5 11.5029 19.8971 11.1 20.4 11.1C20.9029 11.1 21.3 11.5029 21.3 12C21.3 17.1363 17.1363 21.3 12 21.3C6.86375 21.3 2.7 17.1363 2.7 12C2.7 6.86375 6.86375 2.7 12 2.7C14.4829 2.7 16.7467 3.66352 18.4074 5.25H16.2C15.7029 5.25 15.3 4.84706 15.3 4.35C15.3 3.85294 15.7029 3.45 16.2 3.45H20.4C20.8971 3.45 21.3 3.85294 21.3 4.35V8.55C21.3 9.04706 20.8971 9.45 20.4 9.45C19.9029 9.45 19.5 9.04706 19.5 8.55V6.77363C17.4781 4.65689 14.8852 4.5 12 4.5Z" fill="currentColor"/></svg></button>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="backdrop" id="backdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <span id="modalTitle">Новая карточка</span>
+        <button class="icon-btn" id="modalClose" title="Закрыть"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.9542 4.77253C18.3056 4.42106 18.8761 4.42106 19.2276 4.77253C19.579 5.12401 19.579 5.69452 19.2276 6.04597L13.2735 12.0001L19.2276 17.9542C19.5791 18.3056 19.5791 18.8761 19.2276 19.2276C18.8761 19.5791 18.3056 19.5791 17.9542 19.2276L12.0001 13.2735L6.04595 19.2276C5.69451 19.5791 5.12399 19.579 4.77252 19.2276C4.42104 18.8761 4.42104 18.3056 4.77252 17.9542L10.7266 12.0001L4.77252 6.04597C4.42104 5.6945 4.42104 5.124 4.77252 4.77253C5.12399 4.42107 5.69448 4.42106 6.04595 4.77253L12.0001 10.7266L17.9542 4.77253Z" fill="currentColor"/></svg></button>
+      </div>
+      <label class="fld"><span>Заголовок</span><input id="fTitle" type="text" maxlength="120" placeholder="Что нужно сделать?"></label>
+      <label class="fld"><span>Описание</span><textarea id="fDesc" rows="3" maxlength="500" placeholder="Детали, заметки, ссылки…"></textarea></label>
+      <div class="modal-actions">
+        <button class="btn" id="modalCancel">Отмена</button>
+        <button class="btn primary" id="modalSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var KEY = 'kimi-kanban-v1';
+  var COLS = [
+    { id:'todo', title:'К выполнению', dot:'var(--kimi-chart-1)' },
+    { id:'doing', title:'В работе', dot:'var(--kimi-chart-4)' },
+    { id:'done', title:'Готово', dot:'var(--kimi-color-positive)' }
+  ];
+  var GAP = 8, uid = 0;
+  var board = document.getElementById('board');
+  var backdrop = document.getElementById('backdrop');
+  var fTitle = document.getElementById('fTitle'), fDesc = document.getElementById('fDesc');
+  var modalTitle = document.getElementById('modalTitle');
+  var editing = null;
+
+  function nid(){ return 'c' + Date.now().toString(36) + (uid++).toString(36); }
+  function seed(){
+    return { cols: [
+      { id:'todo', title:COLS[0].title, cards:[
+        { id:nid(), title:'Спроектировать структуру проекта', desc:'Определить разделы, навигацию и основные сценарии использования.' },
+        { id:nid(), title:'Собрать обратную связь', desc:'Опросить первых пользователей и выписать повторяющиеся пожелания.' } ] },
+      { id:'doing', title:COLS[1].title, cards:[
+        { id:nid(), title:'Сверстать главную страницу', desc:'Адаптивная вёрстка, проверка на маленьких экранах.' } ] },
+      { id:'done', title:COLS[2].title, cards:[
+        { id:nid(), title:'Настроить рабочее окружение', desc:'Репозиторий, сборка, линтеры.' } ] }
+    ] };
+  }
+  function load(){
+    try { var s = JSON.parse(localStorage.getItem(KEY)); if (s && Array.isArray(s.cols) && s.cols.length === 3) return s; } catch(e){}
+    return seed();
+  }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+  var state = load();
+
+  var ICON_EDIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18.0179 3.09998C18.3963 3.10003 18.7709 3.17491 19.1205 3.31971C19.4701 3.46454 19.7884 3.67614 20.056 3.94373C20.3237 4.21144 20.5362 4.52965 20.681 4.87928C20.8258 5.22887 20.8997 5.60423 20.8997 5.9828C20.8997 6.36118 20.8257 6.73591 20.681 7.08533C20.5362 7.43497 20.3237 7.75317 20.056 8.02088L17.639 10.4379L9.15756 18.9183C8.5296 19.5463 7.74274 19.992 6.8812 20.2074L4.21811 20.8734C3.91148 20.95 3.5871 20.8596 3.36362 20.6361C3.14017 20.4126 3.05063 20.0883 3.12729 19.7816L3.79233 17.1185C4.00771 16.257 4.45344 15.4701 5.08139 14.8422L15.9798 3.94373C16.5203 3.40346 17.2536 3.09998 18.0179 3.09998ZM19.0003 19.1C19.4972 19.1002 19.8997 19.5034 19.8997 20.0004C19.8995 20.4971 19.4971 20.8996 19.0003 20.8998H12.0003C11.5034 20.8998 11.1001 20.4973 11.0999 20.0004C11.0999 19.5033 11.5033 19.1 12.0003 19.1H19.0003ZM18.0179 4.89979C17.7309 4.89979 17.4553 5.01417 17.2523 5.21717L6.35385 16.1146C5.95661 16.5119 5.67469 17.01 5.53842 17.5551L5.23666 18.7631L6.44467 18.4613C6.98971 18.3251 7.48782 18.0431 7.8851 17.6459L18.7826 6.74744C18.883 6.64702 18.9635 6.52821 19.0179 6.39686C19.0723 6.26558 19.0999 6.1247 19.0999 5.9828C19.0999 5.84075 19.0723 5.69916 19.0179 5.56776C18.9635 5.43645 18.883 5.31757 18.7826 5.21717C18.6821 5.11678 18.5631 5.03716 18.432 4.9828C18.3008 4.92845 18.16 4.89983 18.0179 4.89979Z" fill="currentColor"/></svg>';
+  var ICON_DEL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.10001 3C8.10001 2.50294 8.50295 2.1 9.00001 2.1H15C15.4971 2.1 15.9 2.50294 15.9 3C15.9 3.49706 15.4971 3.9 15 3.9H9.00001C8.50295 3.9 8.10001 3.49706 8.10001 3Z" fill="currentColor"/><path d="M10 15.9C9.50295 15.9 9.10001 15.4971 9.10001 15L9.10001 10C9.10001 9.50294 9.50295 9.1 10 9.1C10.4971 9.1 10.9 9.50294 10.9 10L10.9 15C10.9 15.4971 10.4971 15.9 10 15.9Z" fill="currentColor"/><path d="M13.1 15C13.1 15.4971 13.5029 15.9 14 15.9C14.4971 15.9 14.9 15.4971 14.9 15L14.9 10C14.9 9.50294 14.4971 9.1 14 9.1C13.5029 9.1 13.1 9.50294 13.1 10V15Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M2.10001 6C2.10001 5.50294 2.50295 5.1 3.00001 5.1H4.99152C4.99785 5.09993 5.00417 5.09993 5.01048 5.1H18.9895C18.9958 5.09993 19.0021 5.09993 19.0085 5.1H21C21.4971 5.1 21.9 5.50294 21.9 6C21.9 6.49706 21.4971 6.9 21 6.9H19.8281L18.8448 18.6993C18.7412 19.9432 17.7013 20.9 16.4531 20.9H7.54686C6.29865 20.9 5.25881 19.9432 5.15515 18.6993L4.17188 6.9H3.00001C2.50295 6.9 2.10001 6.49706 2.10001 6ZM5.97811 6.9L18.0219 6.9L17.0511 18.5498C17.0251 18.8608 16.7652 19.1 16.4531 19.1H7.54686C7.23481 19.1 6.97485 18.8608 6.94893 18.5498L5.97811 6.9Z" fill="currentColor"/></svg>';
+  var ICON_ADD = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.0684 2.03418C12.5654 2.03421 12.9687 2.43755 12.9688 2.93457V11.0996H21.0654C21.5625 11.0996 21.9658 11.503 21.9658 12C21.9658 12.497 21.5625 12.9004 21.0654 12.9004H12.9688V21.0654C12.9687 21.5624 12.5654 21.9658 12.0684 21.9658C11.5713 21.9658 11.168 21.5625 11.168 21.0654V12.9004H2.93457C2.43751 12.9004 2.03418 12.4971 2.03418 12C2.03418 11.5029 2.43751 11.0996 2.93457 11.0996H11.168V2.93457C11.168 2.43753 11.5713 2.03418 12.0684 2.03418Z" fill="currentColor"/></svg>';
+
+  function el(tag, cls, text){
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function render(){
+    board.innerHTML = '';
+    COLS.forEach(function(meta){
+      var col = state.cols.filter(function(c){ return c.id === meta.id; })[0];
+      var colEl = el('div', 'col');
+      colEl.style.setProperty('--dot', meta.dot);
+      var head = el('div', 'col-head');
+      head.appendChild(el('span', 'dot'));
+      head.appendChild(el('span', 'col-title', col.title));
+      head.appendChild(el('span', 'count', String(col.cards.length)));
+      colEl.appendChild(head);
+      var list = el('div', 'list');
+      list.dataset.col = col.id;
+      col.cards.forEach(function(card){ list.appendChild(makeCard(card)); });
+      colEl.appendChild(list);
+      var add = el('button', 'add-btn');
+      add.innerHTML = ICON_ADD + '<span>Добавить карточку</span>';
+      add.addEventListener('click', function(){ openModal(col.id, null); });
+      colEl.appendChild(add);
+      board.appendChild(colEl);
+    });
+  }
+
+  function makeCard(card){
+    var c = el('div', 'card');
+    c.dataset.id = card.id;
+    var body = el('div', 'card-body');
+    body.appendChild(el('div', 'card-title', card.title));
+    if (card.desc) body.appendChild(el('div', 'card-desc', card.desc));
+    c.appendChild(body);
+    var actions = el('div', 'card-actions');
+    var eb = el('button', 'icon-btn'); eb.innerHTML = ICON_EDIT; eb.title = 'Редактировать';
+    eb.addEventListener('click', function(ev){ ev.stopPropagation(); openModal(null, card.id); });
+    var db = el('button', 'icon-btn danger'); db.innerHTML = ICON_DEL; db.title = 'Удалить';
+    db.addEventListener('click', function(ev){ ev.stopPropagation(); removeCard(card.id); });
+    actions.appendChild(eb); actions.appendChild(db);
+    c.appendChild(actions);
+    return c;
+  }
+
+  function findCard(id){
+    for (var i = 0; i < state.cols.length; i++){
+      var idx = state.cols[i].cards.findIndex(function(c){ return c.id === id; });
+      if (idx > -1) return { col: state.cols[i], idx: idx, card: state.cols[i].cards[idx] };
+    }
+    return null;
+  }
+  function removeCard(id){
+    var f = findCard(id); if (!f) return;
+    f.col.cards.splice(f.idx, 1);
+    save(); render();
+  }
+
+  function openModal(colId, cardId){
+    editing = { colId: colId, cardId: cardId };
+    if (cardId){
+      var f = findCard(cardId);
+      modalTitle.textContent = 'Редактировать карточку';
+      fTitle.value = f.card.title; fDesc.value = f.card.desc || '';
+    } else {
+      modalTitle.textContent = 'Новая карточка';
+      fTitle.value = ''; fDesc.value = '';
+    }
+    backdrop.classList.add('open');
+    setTimeout(function(){ fTitle.focus(); }, 30);
+  }
+  function closeModal(){ backdrop.classList.remove('open'); editing = null; }
+  function submitModal(){
+    if (!editing) return;
+    var t = fTitle.value.trim();
+    if (!t) { fTitle.focus(); return; }
+    var d = fDesc.value.trim();
+    if (editing.cardId){
+      var f = findCard(editing.cardId);
+      f.card.title = t; f.card.desc = d;
+    } else {
+      var col = state.cols.filter(function(c){ return c.id === editing.colId; })[0];
+      col.cards.push({ id: nid(), title: t, desc: d });
+    }
+    save(); render(); closeModal();
+  }
+  document.getElementById('modalSave').addEventListener('click', submitModal);
+  document.getElementById('modalCancel').addEventListener('click', closeModal);
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  backdrop.addEventListener('click', function(e){ if (e.target === backdrop) closeModal(); });
+  document.getElementById('resetBtn').addEventListener('click', function(){
+    state = seed(); save(); render();
+  });
+
+  var drag = null;
+  board.addEventListener('pointerdown', function(e){
+    if (e.button !== undefined && e.button !== 0) return;
+    var cardEl = e.target.closest('.card');
+    if (!cardEl || e.target.closest('.card-actions')) return;
+    var sx = e.clientX, sy = e.clientY, started = false;
+    function onMove(ev){
+      if (!started){
+        if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+        started = true; startDrag(cardEl, sx, sy);
+      }
+      moveDrag(ev);
+    }
+    function onUp(){
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('keydown', onKey);
+      if (started) endDrag();
+    }
+    function onKey(ev){ if (ev.key === 'Escape' && started){ cancelDrag(); onUp(); } }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('keydown', onKey);
+  });
+
+  function startDrag(cardEl, sx, sy){
+    var rect = cardEl.getBoundingClientRect();
+    var bRect = board.getBoundingClientRect();
+    var clone = cardEl.cloneNode(true);
+    clone.classList.add('drag-clone');
+    clone.style.width = rect.width + 'px';
+    clone.style.left = (rect.left - bRect.left) + 'px';
+    clone.style.top = (rect.top - bRect.top) + 'px';
+    board.appendChild(clone);
+    cardEl.classList.add('drag-source');
+    var snap = [];
+    Array.prototype.forEach.call(board.querySelectorAll('.list'), function(list){
+      Array.prototype.forEach.call(list.querySelectorAll('.card'), function(c, i){
+        snap.push({ el: c, list: list, idx: i });
+      });
+    });
+    var srcList = cardEl.closest('.list');
+    drag = {
+      el: cardEl, clone: clone, snap: snap,
+      srcList: srcList, srcCol: srcList.dataset.col,
+      srcIndex: Array.prototype.indexOf.call(srcList.querySelectorAll('.card'), cardEl),
+      h: rect.height, sx: sx, sy: sy,
+      target: null
+    };
+    Array.prototype.forEach.call(board.querySelectorAll('.card'), function(c){ c.classList.add('shifting'); });
+  }
+
+  function moveDrag(ev){
+    if (!drag) return;
+    drag.clone.style.transform = 'translate(' + (ev.clientX - drag.sx) + 'px,' + (ev.clientY - drag.sy) + 'px) rotate(2.5deg) scale(1.02)';
+    var lists = board.querySelectorAll('.list'), best = null, bestDx = Infinity;
+    Array.prototype.forEach.call(lists, function(list){
+      var r = list.getBoundingClientRect();
+      list.closest('.col').classList.remove('hint');
+      var inX = ev.clientX >= r.left - 12 && ev.clientX <= r.right + 12;
+      var inY = ev.clientY >= r.top - 48 && ev.clientY <= r.bottom + 48;
+      if (inX && inY){
+        var dx = Math.abs(ev.clientX - (r.left + r.width / 2));
+        if (dx < bestDx){ bestDx = dx; best = list; }
+      }
+    });
+    if (best){
+      var cards = best.querySelectorAll('.card:not(.drag-source)');
+      var idx = cards.length;
+      for (var i = 0; i < cards.length; i++){
+        var cr = cards[i].getBoundingClientRect();
+        if (ev.clientY < cr.top + cr.height / 2){ idx = i; break; }
+      }
+      drag.target = { list: best, col: best.dataset.col, index: idx };
+      best.closest('.col').classList.add('hint');
+    } else {
+      drag.target = null;
+    }
+    applyShifts();
+  }
+
+  function applyShifts(){
+    var S = drag.h + GAP;
+    drag.snap.forEach(function(s){
+      var shift = 0;
+      if (s.list === drag.srcList && s.idx > drag.srcIndex) shift -= S;
+      if (drag.target && s.list === drag.target.list && s.idx >= drag.target.index && s.el !== drag.el) shift += S;
+      s.el.style.transform = shift ? 'translateY(' + shift + 'px)' : '';
+    });
+  }
+
+  function cleanupDrag(){
+    Array.prototype.forEach.call(board.querySelectorAll('.card'), function(c){
+      c.classList.remove('shifting', 'drag-source');
+      c.style.transform = '';
+    });
+    Array.prototype.forEach.call(board.querySelectorAll('.col'), function(c){ c.classList.remove('hint'); });
+    if (drag && drag.clone) drag.clone.remove();
+    drag = null;
+  }
+
+  function endDrag(){
+    var t = drag.target, srcCol = drag.srcCol, srcIndex = drag.srcIndex;
+    if (t){
+      var from = state.cols.filter(function(c){ return c.id === srcCol; })[0];
+      var to = state.cols.filter(function(c){ return c.id === t.col; })[0];
+      var card = from.cards.splice(srcIndex, 1)[0];
+      to.cards.splice(t.index, 0, card);
+      save();
+    }
+    cleanupDrag();
+    render();
+  }
+  function cancelDrag(){ cleanupDrag(); }
+
+  render();
+})();
+</script>
+</body>
+</html>
