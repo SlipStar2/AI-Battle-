@@ -1,7 +1,7 @@
 {
   "battle": "001",
   "title": "Канбан-доска с нуля",
-  "status": "preparation",
+  "status": "published_for_testing",
   "max_score": 60,
   "criteria": [
     {
@@ -68,21 +68,9 @@
       "tested_at": null,
       "status": "demo_ready",
       "scores": null,
-      "manual_changes": [
-        "В опубликованной демоверсии изменён только ключ localStorage на aibattle-deepseek-kanban-v1, чтобы данные DeepSeek не пересекались с Claude. Исходный файл без изменений сохранён как source-original.html."
-      ],
+      "manual_changes": [],
       "generation_time_minutes": 1,
       "source_file": "deepseek 1 min.html"
-    },
-    {
-      "id": "grok",
-      "name": "Grok",
-      "provider": "xAI",
-      "model": null,
-      "tested_at": null,
-      "status": "pending",
-      "scores": null,
-      "manual_changes": []
     },
     {
       "id": "qwen",
@@ -102,9 +90,11 @@
       "provider": "Moonshot AI",
       "model": null,
       "tested_at": null,
-      "status": "pending",
+      "status": "demo_ready",
       "scores": null,
-      "manual_changes": []
+      "manual_changes": [],
+      "source_file": "original.html",
+      "generation_time_minutes": null
     },
     {
       "id": "alice",
@@ -126,5 +116,6 @@
     "method": "Telegram poll",
     "status": "not_started",
     "results": null
-  }
+  },
+  "participant_count": 6
 }
